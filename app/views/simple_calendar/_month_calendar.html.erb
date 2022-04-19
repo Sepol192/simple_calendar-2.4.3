@@ -1,0 +1,140 @@
+<div class="simple-calendar">
+  <table class="table table-striped" style="border-style: none !important;">
+    <thead>
+      <tr>
+        <th style="max-width: 170px !important;width: 170px !important;border-style: none !important;"></th>
+        <th colspan="<%= date_range.last.strftime("%d").to_i %>" style="text-align:center;border-top:1px solid #ddd !important;"><%= t('date.month_names')[start_date.month] %></th>
+        <th style="width: 100px !important;border-top:1px solid #ddd !important;border-bottom:none !important;">Total</th>
+        <th style="width: 100px !important;border-top:1px solid #ddd !important;border-bottom:none !important;">Total</th>
+        <th style="width: 100px !important;border-top:1px solid #ddd !important;border-bottom:none !important;">Total</th>
+      </tr>
+    </thead>
+    <thead>
+      <tr>
+        <th style="border-style: none !important;"></th>
+        <% date_range.each do |day| %>
+          <th><%= t('date.abbr_day_names')[day.wday] %></th>
+        <% end %>
+        <th style="font-size: 8px;border-top:none !important;border-bottom:none !important;">(Approved vacations)</th>
+        <th style="font-size: 8px;border-top:none !important;border-bottom:none !important;">(Vacations to be approved)</th>
+        <th style="border-top:none !important;border-bottom:none !important;"></th>
+      </tr>
+    </thead>
+    <thead>
+      <tr>
+        <th style="border-style: none !important;"></th>
+        <% date_range.each do |day| %>
+          <th><%= day.strftime("%d") %></th>
+        <% end %>
+        <th style="border-top:none !important;background-color: #c4d09d;"> </th>
+        <th style="border-top:none !important;background-color: #ffe084;"></th>
+        <th style="border-top:none !important;"></th>
+      </tr>
+    </thead>
+    <% @admins.each do |admin| %>
+      <% if admin.cell.present? %>
+        <% @vacation_array = get_vacations_hash(admin.vacations) %>
+        <tbody>
+            <tr>
+              <th type="button" class="<%= "cursor-pointer" if admin == current_admin || admin.cell.try(:admin) == current_admin %> vac-admin" data-toggle="modal" data-target="#vacation-<%= admin.id %>">
+                <%= admin.name %>
+                <% if admin.vacation_for_acception %>
+                  <i class="fa fa-circle" style="color:#ffe084;margin-left:5px;"></i>
+                <% end %>
+              </th>
+              <% date_range.each do |day| %>
+                <% if Date.parse(day.strftime("%d/%m/%Y")).workday?%>
+                  <% if @vacation_array.has_key?(day.strftime("%d/%m/%Y")) %>
+                    <th class="<%= @vacation_array[day.strftime("%d/%m/%Y")] == false ? 'for-acception' : 'accepted' %>"></th>
+                  <% else %>
+                  <th></th>
+                  <% end %>
+                <% else %>
+                  <th class="not-workday"></th>
+                <% end %>
+              <% end %>
+              <th><%= get_accepted_days(admin) %></th>
+              <th><%= get_for_acception_days(admin) %></th>
+              <th>
+                <% if admin.vacation_days %>
+                  <%= get_all_vacation_days(admin) %> of <%= admin.try(:vacation_days) %>
+                <% else %>
+                  <%= get_all_vacation_days(admin) %>
+                <% end %>
+              </th>
+            </tr>
+        </tbody>
+
+        <% if admin == current_admin || admin.cell.try(:admin) == current_admin %>
+          <div id="vacation-<%= admin.id %>" class="modal fade">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                    &times;
+                  </button>
+
+                  <h4 class="modal-title" style="text-align: left;">
+                    <%= admin.name %>
+                  </h4>
+                </div>
+
+                <div class="modal-body" style="padding-left: 50px;padding-bottom: 60px;">
+                  <%= form_for @admin,
+                    as: :form, url: admin_path(admin.id) do |f| %>
+                    <h4 style="margin-bottom:20px;">Vacations:</h4>
+                    <p style="margin-left: 419px;">Delete:</p>
+                    <% admin.vacations.each do |vacation| %>
+                      <div class="radio-vacation">
+                        <input type=hidden value="<%= vacation.id %>" name="admin[vacations_attributes][][id]">
+                        <ul>
+                          <li><%= vacation.start_date %> - <%= vacation.end_date %></li>
+                        </ul>
+                        <div class="form-check">
+                          <% if admin.cell.try(:admin) == current_admin %>
+                            <input class="form-check-input option-right" id="vac<%= vacation.id %>t" type="checkbox" name="admin[vacations_attributes][][accepted]" value="true" <%= "checked" if vacation.accepted %>>
+                            <input class="form-check-input option-wrong" id="vac<%= vacation.id %>f" type="checkbox" name="admin[vacations_attributes][][accepted]" value="false" <%= "checked" if !vacation.accepted %>>
+                          <% end %>
+                          <% if admin == current_admin || admin.cell.try(:admin) == current_admin %>
+                            <input class="form-check-input option-delete" style="<%= admin.cell.try(:admin) == current_admin ? "margin-left: 80px;" : "margin-left: 146px;" %>" id="vac<%= vacation.id %>t" type="checkbox" name="admin[vacations_attributes][][delete]" value="true">
+                          <% end %>
+                        </div>
+                      </div>
+
+                      <script type="text/javascript">
+      
+                        $('#vac<%= vacation.id %>t').change(function() {
+                            if($(this).is(":checked")){
+                              $('#vac<%= vacation.id %>f').attr('checked', false);
+                            }    
+                        });
+                        
+                        $('#vac<%= vacation.id %>f').change(function() {
+                            if($(this).is(":checked")){
+                              $('#vac<%= vacation.id %>t').attr('checked', false);
+                            }    
+                        });
+                      
+                      </script>
+
+                    <% end %>
+                    <div class="pull-right">
+                      <%= f.submit "Submit",
+                          :class => 'btn btn-lg btn-success' %>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+      <% @vacation_array = [] %>
+    <% end %>
+  </table>
+  <div class="calendar-heading" style="margin-left: 50%;margin-top: 10px;">
+    <a href="<%= calendar.url_for_previous_view %>" style="font-size: 20px;"><i class="fa fa-long-arrow-left fa-lg"></i></a>
+    <span class="calendar-title"><%= t('date.month_names')[start_date.month] %> <%= start_date.year %></span>
+    <a href="<%= calendar.url_for_next_view %>" style="font-size: 20px;"><i class="fa fa-long-arrow-right fa-lg"></i></a>
+  </div>
+</div>
